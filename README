@@ -1,0 +1,16 @@
+mustacml
+========
+
+Mustache templating implementation
+
+Building
+--------
+
+This project uses dune as the build system:
+
+    dune build
+
+Running
+-------
+
+Executable can be found within the build/default/bin/ folder.

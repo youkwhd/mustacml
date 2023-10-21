@@ -1,0 +1,4 @@
+(executable
+ (public_name mustacml)
+ (name main)
+ (libraries mustacml))
