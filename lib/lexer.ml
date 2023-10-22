@@ -1,5 +1,9 @@
 type token_kind = 
   | TEXT
+  | MUSTACHE_VAR_NOESCAPE_OPEN
+  | MUSTACHE_VAR_ESCAPE_OPEN
+  | MUSTACHE_VAR_NOESCAPE_CLOSE
+  | MUSTACHE_VAR_ESCAPE_CLOSE
   | BRACKET_OPEN
   | BRACKET_CLOSE
   | BRACKET_CURLY_OPEN
@@ -30,6 +34,10 @@ type token_kind =
 let token_kind_of_string token_kind =
   match token_kind with
   | TEXT -> "TEXT"
+  | MUSTACHE_VAR_NOESCAPE_OPEN -> "MUSTACHE_VAR_NOESCAPE_OPEN"
+  | MUSTACHE_VAR_ESCAPE_OPEN -> "MUSTACHE_VAR_ESCAPE_OPEN"
+  | MUSTACHE_VAR_NOESCAPE_CLOSE -> "MUSTACHE_VAR_NOESCAPE_CLOSE"
+  | MUSTACHE_VAR_ESCAPE_CLOSE -> "MUSTACHE_VAR_ESCAPE_CLOSE"
   | BRACKET_OPEN -> "BRACKET_OPEN"
   | BRACKET_CLOSE -> "BRACKET_CLOSE"
   | BRACKET_CURLY_OPEN -> "BRACKET_CURLY_OPEN"
@@ -63,12 +71,16 @@ type token =
     kind : token_kind;
   }
 
-let token_type_from_string str =
+let token_kind_from_string str =
   match str with
   | "(" -> BRACKET_OPEN
   | ")" -> BRACKET_CLOSE
-  | "}" -> BRACKET_CURLY_OPEN
-  | "{" -> BRACKET_CURLY_CLOSE
+  | "{{{" -> MUSTACHE_VAR_NOESCAPE_OPEN
+  | "{{" -> MUSTACHE_VAR_ESCAPE_OPEN
+  | "}}}" -> MUSTACHE_VAR_NOESCAPE_CLOSE
+  | "}}" -> MUSTACHE_VAR_ESCAPE_CLOSE
+  | "{" -> BRACKET_CURLY_OPEN
+  | "}" -> BRACKET_CURLY_CLOSE
   | "," -> COMMA
   | "." -> COLON
   | ";" -> SEMICOLON
@@ -93,64 +105,77 @@ let token_type_from_string str =
   | "|" -> LINE__ 
   | _ -> TEXT
 
-let token_type_from_char ch =
-  match ch with
-  | '(' -> BRACKET_OPEN
-  | ')' -> BRACKET_CLOSE
-  | '}' -> BRACKET_CURLY_OPEN
-  | '{' -> BRACKET_CURLY_CLOSE
-  | ',' -> COMMA
-  | '.' -> COLON
-  | ';' -> SEMICOLON
-  | '\'' -> QUOTE
-  | '"' -> DOUBLEQUOTE
-  | '#' -> HASH_SIGN
-  | '@' -> AT_SIGN
-  | '\n' -> NEWLINE
-  | '<' -> LEFT_ARROW
-  | '>' -> RIGHT_ARROW
-  | '+' -> PLUS_SIGN
-  | '=' -> EQUAL_SIGN
-  | '_' -> UNDERSCORE
-  | '!' -> EXCLAMATION_MARK
-  | '?' -> QUESTION_MARK
-  | '$' -> DOLLAR_SIGN
-  | '*' -> ASTERISK
-  | '&' -> AMPERSAND
-  | ' ' -> SPACE
-  | '-' -> HYPEN
-  | '^' -> CARET
-  | '|' -> LINE__
-  | _ -> TEXT
-
 let println_token token =
   Printf.printf "%s := %s\n" (token_kind_of_string token.kind) token.text
   
 let println_tokens tokens =
   List.iter println_token tokens
 
-let get_token_end_pos template from =
-  let initial_token_type = token_type_from_char (String.get template from) in
+let get_token_end_pos template template_length from =
+  let rec aux template _to =
+    let token_kind = token_kind_from_string (String.sub template from _to) in
 
-  let rec aux template from =
-    let token_type = token_type_from_char (String.get template from) in
-
-    match token_type with
-      | TEXT -> 1 + aux template (from + 1)
+    match token_kind with
+      | TEXT ->
+          if (from + _to) >= template_length then
+            1
+          else
+            let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
+            if next_token_kind = TEXT then
+              1 + aux template (_to + 1)
+            else
+              1
+      | BRACKET_CURLY_OPEN ->
+          if (from + _to) >= template_length then
+            1
+          else
+            let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
+            if next_token_kind = BRACKET_CURLY_OPEN then
+              1 + aux template (_to + 1)
+            else
+              1
+      | MUSTACHE_VAR_ESCAPE_OPEN ->
+          if (from + _to) >= template_length then
+            1
+          else
+            let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
+            if next_token_kind = BRACKET_CURLY_OPEN then
+              2
+            else
+              1
+      | BRACKET_CURLY_CLOSE ->
+          if (from + _to) >= template_length then
+            1
+          else
+            let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
+            if next_token_kind = BRACKET_CURLY_CLOSE then
+              1 + aux template (_to + 1)
+            else
+              1
+      | MUSTACHE_VAR_ESCAPE_CLOSE ->
+          if (from + _to) >= template_length then
+            1
+          else
+            let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
+            if next_token_kind = BRACKET_CURLY_CLOSE then
+              2
+            else
+              1
       | _ -> 1
   in
 
-  from + (aux template from) - (if initial_token_type = TEXT then 1 else 0)
+  from + (aux template 1)
 
 let generate_from_string template =
   let rec aux template template_length cursor =
     match cursor with
-      | _ when cursor = template_length -> []
+      | _ when cursor >= template_length -> []
       | cursor -> 
-        let (pos_start, pos_end) = (cursor, (get_token_end_pos template cursor)) in
+        let (pos_start, pos_end) = (cursor, (get_token_end_pos template template_length cursor)) in
+        let text = (String.sub template pos_start (pos_end - pos_start)) in
 
-        { text = (String.sub template pos_start (pos_end - pos_start));
-          kind = (token_type_from_char (String.get template cursor));
+        { text = text;
+          kind = (token_kind_from_string text);
           position = (pos_start, pos_end)
         } :: aux template template_length pos_end
   in
