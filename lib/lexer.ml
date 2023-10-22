@@ -21,6 +21,7 @@ type token_kind =
   | PLUS_SIGN
   | EQUAL_SIGN
   | UNDERSCORE
+  | SLASH
   | EXCLAMATION_MARK
   | QUESTION_MARK
   | DOLLAR_SIGN
@@ -55,6 +56,7 @@ let token_kind_of_string token_kind =
   | PLUS_SIGN -> "PLUS_SIGN"
   | EQUAL_SIGN -> "EQUAL_SIGN"
   | UNDERSCORE -> "UNDERSCORE"
+  | SLASH -> "SLASH"
   | EXCLAMATION_MARK -> "EXCLAMATION_MARK"
   | QUESTION_MARK -> "QUESTION_MARK"
   | DOLLAR_SIGN -> "DOLLAR_SIGN"
@@ -94,6 +96,7 @@ let token_kind_from_string str =
   | "+" -> PLUS_SIGN
   | "=" -> EQUAL_SIGN
   | "_" -> UNDERSCORE
+  | "/" -> SLASH
   | "!" -> EXCLAMATION_MARK
   | "?" -> QUESTION_MARK
   | "$" -> DOLLAR_SIGN
@@ -140,7 +143,7 @@ let get_token_end_pos template template_length from =
           else
             let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
             if next_token_kind = BRACKET_CURLY_OPEN then
-              2
+              1 + aux template (_to + 1)
             else
               1
       | BRACKET_CURLY_CLOSE ->
@@ -158,7 +161,7 @@ let get_token_end_pos template template_length from =
           else
             let next_token_kind = token_kind_from_string (String.sub template (from + _to) 1) in
             if next_token_kind = BRACKET_CURLY_CLOSE then
-              2
+              1 + aux template (_to + 1)
             else
               1
       | _ -> 1
