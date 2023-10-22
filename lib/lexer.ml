@@ -1,4 +1,4 @@
-type token_type = 
+type token_kind = 
   | TEXT
   | BRACKET_OPEN
   | BRACKET_CLOSE
@@ -11,6 +11,12 @@ type token_type =
   | DOUBLEQUOTE
   | HASH_SIGN
   | AT_SIGN
+  | NEWLINE
+  | LEFT_ARROW
+  | RIGHT_ARROW
+  | PLUS_SIGN
+  | EQUAL_SIGN
+  | UNDERSCORE
   | EXCLAMATION_MARK
   | QUESTION_MARK
   | DOLLAR_SIGN
@@ -20,12 +26,41 @@ type token_type =
   | HYPEN
   | CARET
   | LINE__
-  | DASH
+
+let token_kind_of_string token_kind =
+  match token_kind with
+  | TEXT -> "TEXT"
+  | BRACKET_OPEN -> "BRACKET_OPEN"
+  | BRACKET_CLOSE -> "BRACKET_CLOSE"
+  | BRACKET_CURLY_OPEN -> "BRACKET_CURLY_OPEN"
+  | BRACKET_CURLY_CLOSE -> "BRACKET_CURLY_CLOSE"
+  | COMMA -> "COMMA"
+  | COLON -> "COLON"
+  | SEMICOLON -> "SEMICOLON"
+  | QUOTE -> "QUOTE"
+  | DOUBLEQUOTE -> "DOUBLEQUOTE"
+  | HASH_SIGN -> "HASH_SIGN"
+  | AT_SIGN -> "AT_SIGN"
+  | NEWLINE -> "NEWLINE"
+  | LEFT_ARROW -> "LEFT_ARROW"
+  | RIGHT_ARROW -> "RIGHT_ARROW"
+  | PLUS_SIGN -> "PLUS_SIGN"
+  | EQUAL_SIGN -> "EQUAL_SIGN"
+  | UNDERSCORE -> "UNDERSCORE"
+  | EXCLAMATION_MARK -> "EXCLAMATION_MARK"
+  | QUESTION_MARK -> "QUESTION_MARK"
+  | DOLLAR_SIGN -> "DOLLAR_SIGN"
+  | ASTERISK -> "ASTERISK"
+  | AMPERSAND -> "AMPERSAND"
+  | SPACE -> "SPACE"
+  | HYPEN -> "HYPEN"
+  | CARET -> "CARET"
+  | LINE__ -> "LINE__"
 
 type token =
   { text : string;
     position : (int * int);
-    _type : token_type;
+    kind : token_kind;
   }
 
 let token_type_from_string str =
@@ -36,11 +71,17 @@ let token_type_from_string str =
   | "{" -> BRACKET_CURLY_CLOSE
   | "," -> COMMA
   | "." -> COLON
-  | "\\," -> SEMICOLON
+  | ";" -> SEMICOLON
   | "'" -> QUOTE
   | "\"" -> DOUBLEQUOTE
   | "#" -> HASH_SIGN
+  | "\n" -> NEWLINE
   | "@" -> AT_SIGN
+  | "<" -> LEFT_ARROW
+  | ">" -> RIGHT_ARROW
+  | "+" -> PLUS_SIGN
+  | "=" -> EQUAL_SIGN
+  | "_" -> UNDERSCORE
   | "!" -> EXCLAMATION_MARK
   | "?" -> QUESTION_MARK
   | "$" -> DOLLAR_SIGN
@@ -50,7 +91,6 @@ let token_type_from_string str =
   | "-" -> HYPEN
   | "^" -> CARET
   | "|" -> LINE__ 
-  | "\\-" -> DASH
   | _ -> TEXT
 
 let token_type_from_char ch =
@@ -61,11 +101,17 @@ let token_type_from_char ch =
   | '{' -> BRACKET_CURLY_CLOSE
   | ',' -> COMMA
   | '.' -> COLON
-  (* | ',' -> SEMICOLON *)
+  | ';' -> SEMICOLON
   | '\'' -> QUOTE
   | '"' -> DOUBLEQUOTE
   | '#' -> HASH_SIGN
   | '@' -> AT_SIGN
+  | '\n' -> NEWLINE
+  | '<' -> LEFT_ARROW
+  | '>' -> RIGHT_ARROW
+  | '+' -> PLUS_SIGN
+  | '=' -> EQUAL_SIGN
+  | '_' -> UNDERSCORE
   | '!' -> EXCLAMATION_MARK
   | '?' -> QUESTION_MARK
   | '$' -> DOLLAR_SIGN
@@ -75,9 +121,13 @@ let token_type_from_char ch =
   | '-' -> HYPEN
   | '^' -> CARET
   | '|' -> LINE__
-  (* | '-' -> DASH *)
   | _ -> TEXT
 
+let println_token token =
+  Printf.printf "%s := %s\n" (token_kind_of_string token.kind) token.text
+  
+let println_tokens tokens =
+  List.iter println_token tokens
 
 let get_token_end_pos template from =
   let initial_token_type = token_type_from_char (String.get template from) in
@@ -90,17 +140,17 @@ let get_token_end_pos template from =
       | _ -> 1
   in
 
-  (aux template from) - (if initial_token_type = TEXT then 1 else 0)
+  from + (aux template from) - (if initial_token_type = TEXT then 1 else 0)
 
 let generate_from_string template =
-
   let rec aux template template_length cursor =
     match cursor with
       | _ when cursor = template_length -> []
       | cursor -> 
-        let (pos_start, pos_end) = (cursor, cursor + (get_token_end_pos template cursor) ) in
+        let (pos_start, pos_end) = (cursor, (get_token_end_pos template cursor)) in
+
         { text = (String.sub template pos_start (pos_end - pos_start));
-          _type = (token_type_from_string (String.make 1 (String.get template cursor)));
+          kind = (token_type_from_char (String.get template cursor));
           position = (pos_start, pos_end)
         } :: aux template template_length pos_end
   in
